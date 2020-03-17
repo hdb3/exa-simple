@@ -2,10 +2,24 @@
 
 import sys
 
+def switch(s,a,b):
+    if a == s:
+        return b
+    elif b == s:
+        return a
+    else:
+        msg("unexpected neighbour: " + s)
+        return s
+    
+def api (s):
+    sys.stdout.write(s)
+    sys.stdout.write("\n")
+    sys.stdout.flush()
+
 def msg (s):
     sys.stderr.write(s)
     sys.stderr.write("\n")
-    sys.stderr.flush
+    sys.stderr.flush()
 
 msg("relay starting")
 
@@ -22,12 +36,19 @@ for line in sys.stdin:
     if s:
         # msg(f'>> {s}')
         words = s.split()
-        if words[0] == "neighbor":
+        if words[0] == "done":
+            pass
+        elif words[0] == "neighbor":
             neighbour = words[1]
             if words[2] == "receive" and words[3] == "update":
-                if words[4] == "announced":
+                if words[4] == "announced" or words[4] == "withdrawn":
                     route = ' '.join(words[5::])
-                    msg("send: " + route)
+                    msg(">> " + s)
+                    response = "neighbor " + switch(neighbour,h1,h2)
+                    response = response + ( " announce route " if words[4] == "announced" else " withdraw route " )
+                    response = response + route
+                    msg("<< " + response)
+                    api(response)
                 elif words[4] == "start":
                     pass
                 elif words[4] == "end":
@@ -43,14 +64,5 @@ for line in sys.stdin:
         else:
             msg("unexpected input: " + s)
 
-"""     if h1 in line:
-        newline = line.replace(h1,h2)
-    else:
-        newline = line.replace(h2,h1)
-    sys.stdout.write(newline)
-    sys.stdout.write("\n")
-    sys.stdout.flush 
-    sys.stderr.write(f'Put:{newline}\n')
-    sys.stderr.flush   """      
 
 sys.stderr.write("Done\n")
