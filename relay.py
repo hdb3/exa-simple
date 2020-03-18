@@ -109,25 +109,33 @@ def half_jsony ():
         if typ == 'update':
             dbg("update from " + peer)
             update = z['neighbor']['message']['update']
-            attributes = update['attribute']
-            (nexthop,nlridicts) = list(dict.items(update['announce']['ipv4 unicast']))[0]
-
-            nlris=[]
-            for d in nlridicts:
-                nlris.append(d['nlri'])
-
             neighbor = switch(peer,h1,h2)
-            origin = attributes['origin']
-            aspath = (str(attributes['as-path']).replace(',',''))
 
-            # api string is like: "neighbor 7.0.0.6 announce route 172.16.0.99/32 next-hop 7.0.0.2 origin igp as-path [ 65001 100 101 ]"
+            if 'withdraw' in update:
+                nlris=[]
+                for d in update['withdraw']['ipv4 unicast']:
+                    nlris.append(d['nlri'])
+                for prefix in nlris:
+                    api(f'neighbor {neighbor} withdraw route {prefix}')
 
-            # it does not seem possible to send packed NLRI with the API
-            # api(f'neighbor {neighbor} announce start')
-            for prefix in nlris:
-                response = f'neighbor {neighbor} announce route {prefix} next-hop {nexthop} origin {origin} as-path {aspath}'
-                api(response)
-            # api(f'neighbor {neighbor} announce end')
+            if 'announce' in update:
+                attributes = update['attribute']
+                (nexthop,nlridicts) = list(dict.items(update['announce']['ipv4 unicast']))[0]
+
+                nlris=[]
+                for d in nlridicts:
+                    nlris.append(d['nlri'])
+
+                origin = attributes['origin']
+                aspath = (str(attributes['as-path']).replace(',',''))
+
+                # api string is like: "neighbor 7.0.0.6 announce route 172.16.0.99/32 next-hop 7.0.0.2 origin igp as-path [ 65001 100 101 ]"
+
+                # it does not seem possible to send packed NLRI with the API
+                # api(f'neighbor {neighbor} announce start')
+                for prefix in nlris:
+                    api(f'neighbor {neighbor} announce route {prefix} next-hop {nexthop} origin {origin} as-path {aspath}')
+                # api(f'neighbor {neighbor} announce end')
 
         elif typ == 'state':
             if 'up' == z['neighbor']['state']:
@@ -191,6 +199,6 @@ else:
     h1 = sys.argv[1]
     h2 = sys.argv[2]
     msg(f'mapping updates between {h1} and {h2}')
-    # texty()
-    half_jsony()
+    texty()
+    # half_jsony()
 msg("Done\n")
