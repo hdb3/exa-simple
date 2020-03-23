@@ -24,25 +24,14 @@ def msg (s):
     sys.stderr.write(s)
     sys.stderr.write("\n")
     sys.stderr.flush()
-    
-ack = True
   
 def api (s):
     dbg("<<" + s)
+    global req
+    req = s
     sys.stdout.write(s)
     sys.stdout.write("\n")
     sys.stdout.flush()
-    if not ack:
-        return
-    else:
-        line = sys.stdin.readline().strip()
-
-        if "done" == line:
-            return
-        elif "error" == line:
-            msg("error after" + s)
-        else:
-            msg("unexpected response: [" + line +"]")
 
 switcher = {}
 
@@ -89,9 +78,18 @@ def jsony ():
             msg(str(z))
 
 def half_jsony ():
+
+    update_count = 0
     
     while True:
         line = sys.stdin.readline().strip()
+
+        global req
+        if "done" == line:
+            continue
+        elif "error" == line:
+            msg("error after" + req)
+
         try:
             z = json.loads(line)
         except Exception:
@@ -107,7 +105,15 @@ def half_jsony ():
         #   where the array mmebers are single member dictioarys like this....
         #      [{'nlri': '172.16.0.98/32'}, {'nlri': '172.16.0.99/32'}]
         if typ == 'update':
+            update_count += 1
             dbg("update from " + peer)
+            sys.stderr.write(str(update_count))
+            sys.stderr.write("\r")
+            if 'eor' in z['neighbor']['message']:
+                continue
+            elif 'update' not in z['neighbor']['message']:
+                msg("update filed not in message [" + line + "]")
+                exit
             update = z['neighbor']['message']['update']
             neighbor = switch(peer,h1,h2)
 
@@ -156,8 +162,6 @@ The text based packed NLRI format is:
 Unfortunately, the API is not symmetric and this scheme is not allowed on the sending side
 """
 def texty ():
-    global ack
-    ack = False
 
     while True:
         line = sys.stdin.readline().strip()
@@ -199,6 +203,6 @@ else:
     h1 = sys.argv[1]
     h2 = sys.argv[2]
     msg(f'mapping updates between {h1} and {h2}')
-    texty()
-    # half_jsony()
+    # texty()
+    half_jsony()
 msg("Done\n")
