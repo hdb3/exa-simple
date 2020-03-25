@@ -15,9 +15,10 @@ The exaBGP runs as a passive BGP listener, waiting for two (active) peers to con
 ## usage notes
 run as:
 exabag/sbin/exabgp relay.conf
-exabgp.env should be in exabgp/etc/exabgp/.  The --env argument doesn't seem to work.
+exabgp.env should be in exabgp/etc/exabgp/.  ( The --env argument doesn't seem to work. )
 The script reports the number of updates and prefixes at intervals (100th update) and also when it receives End Of RIB.
 In this configuration the daemon needs to listen on port 179, which requires either root privilege or something like 'sysctl net.ipv4.ip_unprivileged_port_start=179'.
 
 ## testing observations
 To load and re-advertise a full internet route table  (130k paths, 800k prefixes) takes around 150 seconds.
+The version of exabgp used is 4.2.6.
