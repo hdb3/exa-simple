@@ -50,36 +50,11 @@ def add_local(address):
     else:
         msg("unexpected neighbour:" + str(address))
 
-def jsony ():
-    while True:
-        line = sys.stdin.readline().strip()
-        try:
-            z = json.loads(line)
-        except Exception:
-            msg("failed to read json " + line)
-            break
-
-        peer = z['neighbor']['address']['peer']
-        typ  =  z['type']
-        if typ == 'update':
-            dbg("update from " + peer + " : " + str(z))
-            z['neighbor']['address'] = jswitch(z['neighbor']['address'])
-            dbg("switched to : " + str(z))
-            api(json.dumps(z))
-        elif typ == 'state':
-            if 'up' == z['neighbor']['state']:
-                local = z['neighbor']['address']['local']
-                msg("peer " + peer + " up, local=" +  local)
-                add_local(z['neighbor']['address'])
-            else:
-                pass
-        else:
-            msg("got: " + typ + " from " + peer )
-            msg(str(z))
-
 def half_jsony ():
 
     update_count = 0
+    prefix_count = 0
+    max_prefix_count = 0
     
     while True:
         line = sys.stdin.readline().strip()
@@ -105,14 +80,14 @@ def half_jsony ():
         #   where the array mmebers are single member dictioarys like this....
         #      [{'nlri': '172.16.0.98/32'}, {'nlri': '172.16.0.99/32'}]
         if typ == 'update':
-            update_count += 1
+
             dbg("update from " + peer)
-            sys.stderr.write(str(update_count))
-            sys.stderr.write("\r")
+
             if 'eor' in z['neighbor']['message']:
+                sys.stderr.write(str(max_prefix_count) + " : " + str(update_count) + " : " + str(prefix_count) + " =\n")
                 continue
             elif 'update' not in z['neighbor']['message']:
-                msg("update filed not in message [" + line + "]")
+                msg("update field not in message [" + line + "]")
                 exit
             update = z['neighbor']['message']['update']
             neighbor = switch(peer,h1,h2)
@@ -128,20 +103,19 @@ def half_jsony ():
                 attributes = update['attribute']
                 (nexthop,nlridicts) = list(dict.items(update['announce']['ipv4 unicast']))[0]
 
-                nlris=[]
+                prefixes = ""
                 for d in nlridicts:
-                    nlris.append(d['nlri'])
-
+                    prefixes = prefixes + str(d['nlri']) + " "
+                    
                 origin = attributes['origin']
                 aspath = (str(attributes['as-path']).replace(',',''))
-
-                # api string is like: "neighbor 7.0.0.6 announce route 172.16.0.99/32 next-hop 7.0.0.2 origin igp as-path [ 65001 100 101 ]"
-
-                # it does not seem possible to send packed NLRI with the API
-                # api(f'neighbor {neighbor} announce start')
-                for prefix in nlris:
-                    api(f'neighbor {neighbor} announce route {prefix} next-hop {nexthop} origin {origin} as-path {aspath}')
-                # api(f'neighbor {neighbor} announce end')
+                update_count += 1
+                this_prefix_count = len(nlridicts)
+                prefix_count += this_prefix_count
+                max_prefix_count = this_prefix_count if this_prefix_count > max_prefix_count else max_prefix_count 
+                if 0 == update_count % 100:
+                    sys.stderr.write(str(max_prefix_count) + " : " + str(update_count) + " : " + str(prefix_count) + "\r")
+                api(f'neighbor {neighbor} announce attributes next-hop {nexthop} origin {origin} as-path {aspath} nlri {prefixes}')
 
         elif typ == 'state':
             if 'up' == z['neighbor']['state']:
